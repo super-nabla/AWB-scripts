@@ -89,40 +89,50 @@ public string processFileParams(string ArticleText, string ArticleTitle, int wik
             {
                 if (replacedParameters.Contains("min"))
                 {
-                    // Se c'è 'min' (o se è stato convertito in 'min'), converte px in verticale
-                    try
+                    // Controlla se c'è già un parametro verticale
+                    bool hasVerticaleAlready = replacedParameters.Any(p => 
+                        p.StartsWith("verticale", StringComparison.OrdinalIgnoreCase));
+
+                    // Se NON c'è già un parametro verticale, procedi con la conversione
+                    if (hasVerticaleAlready) 
                     {
-                        // Ottieni le dimensioni reali dell'immagine
-                        var ratio = GetImageRatio(tokens[0]);
-                        if (ratio > 0)
-                        {
-                            
-                            // Calcola il valore verticale: 
-                            double verticale_val = Math.Sqrt(ratio * 0.75);
-                            verticale_val = Math.Round(verticale_val, 2);
-                            
-                            // Aggiungi il parametro verticale
-                            string verticaleParam = "verticale=" + verticale_val.ToString();
-                            
-                            // Inserisci il parametro verticale dopo 'min' se presente
-                            int minIndex = replacedParameters.IndexOf("min");
-                            if (minIndex > -1)
-                            {
-                                replacedParameters.Insert(minIndex + 1, verticaleParam);
-                            }
-                            else
-                            {
-                                replacedParameters.Insert(0, verticaleParam);
-                            }
-                            
-                            nSubstitutions++;
-                            pxRemoved = true; // Segna che è avvenuta una rimozione di 'px'
-                        }
+                      //niente da fare: scarta px
                     }
-                    catch
+                    else
                     {
-                        // In caso di errore, mantieni il parametro px (fallback)
-                        replacedParameters.Insert(0, pxParameter);
+                        try
+                        {
+                            // Ottieni le dimensioni reali dell'immagine
+                            var ratio = GetImageRatio(tokens[0]);
+                            if (ratio > 0)
+                            {
+                                // Calcola il valore verticale: 
+                                double verticale_val = Math.Sqrt(ratio * 0.75);
+                                verticale_val = Math.Round(verticale_val, 2);
+                                
+                                // Aggiungi il parametro verticale
+                                string verticaleParam = "verticale=" + verticale_val.ToString();
+                                
+                                // Inserisci il parametro verticale dopo 'min' se presente
+                                int minIndex = replacedParameters.IndexOf("min");
+                                if (minIndex > -1)
+                                {
+                                    replacedParameters.Insert(minIndex + 1, verticaleParam);
+                                }
+                                else
+                                {
+                                    replacedParameters.Insert(0, verticaleParam);
+                                }
+                                
+                                nSubstitutions++;
+                                pxRemoved = true; // Segna che è avvenuta una rimozione di 'px'
+                            }
+                        }
+                        catch
+                        {
+                            // In caso di errore, mantieni il parametro px (fallback)
+                            replacedParameters.Insert(0, pxParameter);
+                        }
                     }
                 }
                 else
