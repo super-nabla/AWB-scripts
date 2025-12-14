@@ -82,7 +82,6 @@ public string processFileParams(string ArticleText, string ArticleTitle, int wik
             }
             // 4. Post-pulizia e standardizzazione aggiuntiva
             
-            // **NUOVA LOGICA PER LA RIMUOVERE IL PX**
             // Se è presente il parametro 'min', ignora la dimensione in px.
             if (pxParameter != null)
             {
