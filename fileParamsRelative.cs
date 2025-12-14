@@ -47,7 +47,7 @@ public string processFileParams(string ArticleText, string ArticleTitle, int wik
             string filePrefix = tokens[0].Trim();
             if (Regex.IsMatch(filePrefix, @"^(Image|image):", RegexOptions.IgnoreCase))
             {
-                tokens[0] = Regex.Replace(filePrefix, @"^(Image|image):", "Immagine:", RegexOptions.IgnoreCase);
+                tokens[0] = Regex.Replace(filePrefix, @"^(Image|image):", "File:", RegexOptions.IgnoreCase);
                 nSubstitutions++;
             }
             
@@ -184,15 +184,12 @@ public string processFileParams(string ArticleText, string ArticleTitle, int wik
 private double GetImageRatio(string imageTitle)
 {
     try
-    {
-        // Rimuovi il prefisso "Immagine:" se presente
-        string cleanTitle = imageTitle.Replace("Immagine:", "").Trim();
-        
+    {       
         // Esegui la chiamata API a MediaWiki
         string url = "https://www.mediawiki.org/w/api.php";
         string parameters = string.Format(
             "?action=query&prop=imageinfo&iiprop=size&titles={0}&format=json",
-            System.Web.HttpUtility.UrlEncode(cleanTitle)
+            System.Web.HttpUtility.UrlEncode(imageTitle)
         );
         
         using (System.Net.WebClient client = new System.Net.WebClient())
