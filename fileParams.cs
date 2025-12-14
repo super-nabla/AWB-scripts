@@ -99,7 +99,7 @@ public string processFileParams(string ArticleText, string ArticleTitle, int wik
                 }
             }
             
-            // Se c'è 'min', rimuovi 'destra' (Logica originale)
+            // Se c'è 'min', rimuovi 'destra'
             if (replacedParameters.Contains("min"))
             {
                 int indexDestra = replacedParameters.IndexOf("destra");
@@ -109,7 +109,7 @@ public string processFileParams(string ArticleText, string ArticleTitle, int wik
                 }
             }
             
-            // Standardizzazione di 'verticale' (Logica originale)
+            // Standardizzazione di 'verticale'
             replacedParameters = replacedParameters.Select(token => {
                 if (token == "verticale=.7" || token == "verticale=0.7")
                 {
@@ -128,8 +128,8 @@ public string processFileParams(string ArticleText, string ArticleTitle, int wik
             return "[[" + newInnerContent + "]]";
         }, RegexOptions.Singleline);
         
-        // Salta l'articolo se non è stata fatta alcuna modifica
-        if (nSubstitutions == 0)
+        // Salta l'articolo se non sono state apportate modifiche
+        if (! pxRemoved)
         {
             Skip = true;
             // Summary è irrilevante se si salta, ma va comunque inizializzato
