@@ -83,22 +83,52 @@ public string processFileParams(string ArticleText, string ArticleTitle, int wik
                     replacedParameters.Add(param);
                 }
             }
-            // 4. Post-pulizia e standardizzazione aggiuntiva
             
-            // Se è presente il parametro 'min', ignora la dimensione in px.
+            // 4. Logica di conversione PX -> verticale (solo se c'è 'min')
             if (pxParameter != null)
             {
-                if (!replacedParameters.Contains("min"))
+                if (replacedParameters.Contains("min"))
                 {
-                    // Se NON c'è 'min', mantieni il parametro px
-                    replacedParameters.Insert(0, pxParameter); 
+                    // Se c'è 'min' (o se è stato convertito in 'min'), converte px in verticale
+                    try
+                    {
+                        // Ottieni le dimensioni reali dell'immagine
+                        var ratio = GetImageRatio(tokens[0]);
+                        if (ratio > 0)
+                        {
+                            
+                            // Calcola il valore verticale: 
+                            double verticale_val = Math.Sqrt(ratio * 0.75);
+                            verticale_val = Math.Round(verticale_val, 2);
+                            
+                            // Aggiungi il parametro verticale
+                            string verticaleParam = "verticale=" + verticale_val.ToString();
+                            
+                            // Inserisci il parametro verticale dopo 'min' se presente
+                            int minIndex = replacedParameters.IndexOf("min");
+                            if (minIndex > -1)
+                            {
+                                replacedParameters.Insert(minIndex + 1, verticaleParam);
+                            }
+                            else
+                            {
+                                replacedParameters.Insert(0, verticaleParam);
+                            }
+                            
+                            nSubstitutions++;
+                            pxRemoved = true; // Segna che è avvenuta una rimozione di 'px'
+                        }
+                    }
+                    catch
+                    {
+                        // In caso di errore, mantieni il parametro px (fallback)
+                        replacedParameters.Insert(0, pxParameter);
+                    }
                 }
                 else
                 {
-                    // Se c'è 'min', rimuovi il px.
-                    // nSubstitutions viene incrementato qui per contare la rimozione
-                    nSubstitutions++;
-                    pxRemoved = true; // Imposta il flag di rimozione avvenuta
+                    // Se NON c'è 'min', mantieni il parametro px
+                    replacedParameters.Insert(0, pxParameter);
                 }
             }
             
@@ -144,8 +174,57 @@ public string processFileParams(string ArticleText, string ArticleTitle, int wik
             // Aggiunge la frase sul dimensionamento assoluto SE la rimozione del 'px' è avvenuta almeno una volta
             if (pxRemoved)
             {
-                Summary += " " + "Il [[WP:RIS|dimensionamento assoluto]] delle immagini è deprecato.";
+                Summary += " " + "Il [[WP:RIS|dimensionamento assoluto]] delle immagini è deprecato (sostituito con un ridimensionamento relativo; cfr.: [[WP:Bot/Autorizzazioni]]).";
             }
         }
         return ArticleText;
     }
+
+// Funzione per ottenere le dimensioni dell'immagine via API
+private double GetImageRatio(string imageTitle)
+{
+    try
+    {
+        // Rimuovi il prefisso "Immagine:" se presente
+        string cleanTitle = imageTitle.Replace("Immagine:", "").Trim();
+        
+        // Esegui la chiamata API a MediaWiki
+        string url = "https://www.mediawiki.org/w/api.php";
+        string parameters = string.Format(
+            "?action=query&prop=imageinfo&iiprop=size&titles={0}&format=json",
+            System.Web.HttpUtility.UrlEncode(cleanTitle)
+        );
+        
+        using (System.Net.WebClient client = new System.Net.WebClient())
+        {
+            client.Headers.Add("User-Agent", "AutoWikiBrowser Custom Module ([[it:user:nablabot]]); contact at [[it:user talk:super nabla]]");
+            string json = client.DownloadString(url + parameters);
+            
+            // Parsing del JSON (semplificato)
+            if (json.Contains("\"width\":"))
+            {
+                // Estrai width
+                int widthIndex = json.IndexOf("\"width\":") + 8;
+                int widthEndIndex = json.IndexOf(",", widthIndex);
+                string widthStr = json.Substring(widthIndex, widthEndIndex - widthIndex).Trim();
+                
+                // Estrai height
+                int heightIndex = json.IndexOf("\"height\":", widthEndIndex) + 9;
+                int heightEndIndex = json.IndexOf("}", heightIndex);
+                string heightStr = json.Substring(heightIndex, heightEndIndex - heightIndex).Trim();
+                
+                int width, height;
+                if (int.TryParse(widthStr, out width) && int.TryParse(heightStr, out height))
+                {
+                    return 1.0 * width / height;
+                }
+            }
+        }
+    }
+    catch
+    {
+        // In caso di errore, restituisci -1
+    }
+    
+    return -1;
+}
