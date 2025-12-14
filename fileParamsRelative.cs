@@ -184,7 +184,7 @@ public string processFileParams(string ArticleText, string ArticleTitle, int wik
             // Aggiunge la frase sul dimensionamento assoluto SE la rimozione del 'px' è avvenuta almeno una volta
             if (pxRemoved)
             {
-                Summary += " " + "Il [[WP:RIS|dimensionamento assoluto]] delle immagini è deprecato (sostituito con un ridimensionamento relativo; cfr.: [[WP:Bot/Autorizzazioni]]).";
+                Summary += " " + "Il [[WP:RIS|dimensionamento assoluto]] delle immagini è deprecato: sostituito con un ridimensionamento relativo; cfr.: [[WP:Bot/Autorizzazioni]].";
             }
         }
         return ArticleText;
@@ -196,7 +196,7 @@ private double GetImageRatio(string imageTitle)
     try
     {       
         // Esegui la chiamata API a MediaWiki
-        string url = "https://www.mediawiki.org/w/api.php";
+        string url = "https://it.wikipedia.org/w/api.php";
         string parameters = string.Format(
             "?action=query&prop=imageinfo&iiprop=size&titles={0}&format=json",
             System.Web.HttpUtility.UrlEncode(imageTitle)
