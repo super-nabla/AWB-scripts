@@ -1,300 +1,287 @@
 // AutoWikiBrowser module to localize and standardize file parameters in Italian Wikipedia articles
 // by User:super nabla, December 2025
-public string ProcessArticle(string ArticleText, string ArticleTitle, int wikiNamespace, out string Summary, out bool Skip) {
-  return processFileParams(ArticleText, ArticleTitle, wikiNamespace, out Summary, out Skip);
-}
-
-public string processFileParams(string ArticleText, string ArticleTitle, int wikiNamespace, out string Summary, out bool Skip) {
-  Skip = false;
-  Summary = "";
-
-  // Mappa delle sostituzioni dei parametri inglesi in italiano
-  var replacements = new Dictionary < string,
-    string > (StringComparer.OrdinalIgnoreCase) {
-      {
-        "alt=",
-        ""
-      }, {
-        "border",
-        "bordo"
-      }, {
-        "bottom",
-        "sotto"
-      }, {
-        "center",
-        "centro"
-      }, {
-        "centre",
-        "centro"
-      }, {
-        "frameless",
-        "senza cornice"
-      }, {
-        "frame",
-        "riquadrato"
-      }, {
-        "framed",
-        "riquadrato"
-      }, {
-        "enframed",
-        "riquadrato"
-      }, {
-        "originale",
-        "riquadrato"
-      }, {
-        "incorniciato",
-        "riquadrato"
-      }, {
-        "left",
-        "sinistra"
-      }, {
-        "middle",
-        "metà"
-      }, {
-        "miniatura",
-        "min"
-      }, {
-        "none",
-        "nessuno"
-      }, {
-        "right",
-        "destra"
-      }, {
-        "sub",
-        "pedice"
-      }, {
-        "text-bottom",
-        "testo-sotto"
-      }, {
-        "text-top",
-        "testo-sopra"
-      }, {
-        "thumb",
-        "min"
-      }, {
-        "thumbnail",
-        "min"
-      }, {
-        "top",
-        "sopra"
-      }, {
-        "upright",
-        "verticale"
-      },
-    };
-
-  int nSubstitutions = 0;
-  bool pxRemoved = false;
-  StringBuilder result = new StringBuilder();
-  int i = 0;
-  int articleLength = ArticleText.Length;
-
-  while (i < articleLength) {
-    // Cerca "[[File:", "[[Immagine:", o "[[Image:"
-    if (i + 7 < articleLength &&
-      ArticleText[i] == '[' && ArticleText[i + 1] == '[' &&
-      (ArticleText.Substring(i + 2, 5).Equals("File:", StringComparison.OrdinalIgnoreCase) ||
-        ArticleText.Substring(i + 2, 9).Equals("Immagine:", StringComparison.OrdinalIgnoreCase) ||
-        ArticleText.Substring(i + 2, 6).Equals("Image:", StringComparison.OrdinalIgnoreCase))) {
-      int startPos = i;
-      int bracketBalance = 2; // Partiamo con 2 perché abbiamo "[["
-      int currentPos = i + 2; // Saltiamo le prime due parentesi
-
-      // Scorri a destra finché il bilanciamento non è zero
-      while (currentPos < articleLength && bracketBalance > 0) {
-        if (currentPos + 1 < articleLength &&
-          ArticleText[currentPos] == '[' && ArticleText[currentPos + 1] == '[') {
-          bracketBalance += 2;
-          currentPos += 2; // Salta entrambe le parentesi
-        } else if (currentPos + 1 < articleLength &&
-          ArticleText[currentPos] == ']' && ArticleText[currentPos + 1] == ']') {
-          bracketBalance -= 2;
-          currentPos += 2; // Salta entrambe le parentesi
-        } else {
-          currentPos++;
-        }
-      }
-
-      // Se abbiamo trovato la fine bilanciata
-      if (bracketBalance == 0) {
-        int endPos = currentPos; // currentPos punta alla fine dopo "]]"
-        string fileMatch = ArticleText.Substring(startPos, endPos - startPos);
-
-        // Processa il match
-        string processedMatch = ProcessFileMatch(fileMatch, replacements, ref nSubstitutions, ref pxRemoved);
-        result.Append(processedMatch);
-        i = endPos;
-        continue;
-      }
+public string ProcessArticle(string ArticleText, string ArticleTitle, int wikiNamespace, out string Summary, out bool Skip)
+    {
+      return processFileParams(ArticleText, ArticleTitle, wikiNamespace, out Summary, out Skip);
     }
-
-    // Se non troviamo un match o non riusciamo a bilanciare, copia il carattere corrente
-    result.Append(ArticleText[i]);
-    i++;
-  }
-
-  // Salta l'articolo se non sono state apportate modifiche
-  if (!pxRemoved) {
-    Skip = true;
+    
+public string processFileParams(string ArticleText, string ArticleTitle, int wikiNamespace, out string Summary, out bool Skip)
+{
+    Skip = false;
     Summary = "";
-  } else {
-    // Aggiorna il riepilogo con il numero effettivo di modifiche
-    Summary = string.Format("Localizza e uniforma {0} parametri dei file.", nSubstitutions);
-
-    // Aggiunge la frase sul dimensionamento assoluto SE la rimozione del 'px' è avvenuta almeno una volta
-    if (pxRemoved) {
-      Summary += " " + "Il [[WP:RIS|dimensionamento assoluto]] delle immagini è deprecato: sostituito con un ridimensionamento relativo; cfr.: [[WP:Bot/Autorizzazioni]].";
-    }
-  }
-
-  return result.ToString();
-}
-private string ProcessFileMatch(string fileMatch, Dictionary < string, string > replacements, ref int nSubstitutions, ref bool pxRemoved) {
-  // Estrae il contenuto senza le [[ e ]] esterne
-  string innerContent = fileMatch.Substring(2, fileMatch.Length - 4);
-
-  // Separa i token in base al divisore '|'
-  var tokens = innerContent.Split('|').ToList();
-
-  if (tokens.Count < 2) {
-    return fileMatch;
-  }
-
-  // Standardizzazione della parte iniziale (es. "Image:" -> "File:")
-  string filePrefix = tokens[0].Trim();
-  if (Regex.IsMatch(filePrefix, @ "^(Image|image):", RegexOptions.IgnoreCase)) {
-    tokens[0] = Regex.Replace(filePrefix, @ "^(Image|image):", "File:", RegexOptions.IgnoreCase);
-    nSubstitutions++;
-  }
-
-  // Lista separata per i parametri di dimensione in 'px'
-  string pxParameter = null;
-
-  // Analisi e Localizzazione dei Parametri
-  var parameters = tokens.Skip(1)
-    .Select(token => token.Trim())
-    .ToList();
-  var replacedParameters = new List < string > ();
-  foreach(var param in parameters) {
-    // Controllo se il parametro è una dimensione assoluta in 'px'
-    if (Regex.IsMatch(param, @ "^\d+x?\d*px$", RegexOptions.IgnoreCase)) {
-      pxParameter = param; // Salva il parametro px
-      continue; // NON aggiungerlo ancora a replacedParameters
-    }
-    if (replacements.ContainsKey(param)) {
-      nSubstitutions++;
-      replacedParameters.Add(replacements[param]);
-    } else if (Regex.IsMatch(param, @ "^upright=\d*(\.\d+)?$", RegexOptions.IgnoreCase)) {
-      // Gestione di 'upright=X'
-      nSubstitutions++;
-      replacedParameters.Add(Regex.Replace(param, "upright", "verticale", RegexOptions.IgnoreCase));
-    } else {
-      replacedParameters.Add(param);
-    }
-  }
-
-  // Logica di conversione PX -> verticale (solo se c'è 'min')
-  if (pxParameter != null) {
-    if (replacedParameters.Contains("min")) {
-      // Controlla se c'è già un parametro verticale
-      bool hasVerticaleAlready = replacedParameters.Any(p =>
-        p.StartsWith("verticale", StringComparison.OrdinalIgnoreCase));
-      // Se NON c'è già un parametro verticale, procedi con la conversione
-      if (hasVerticaleAlready) {
-        //niente da fare: scarta px
-      } else {
-        try {
-          // Ottieni le dimensioni reali dell'immagine
-          var ratio = GetImageRatio(tokens[0]);
-          if (ratio > 0) {
-            // Calcola il valore verticale: 
-            double verticale_val = Math.Sqrt(ratio * 0.75);
-            verticale_val = Math.Round(verticale_val, 2);
-
-            // Aggiungi il parametro verticale
-            string verticaleParam = "verticale=" + verticale_val.ToString();
-
-            // Inserisci il parametro verticale dopo 'min' se presente
-            int minIndex = replacedParameters.IndexOf("min");
-            if (minIndex > -1) {
-              replacedParameters.Insert(minIndex + 1, verticaleParam);
-            } else {
-              replacedParameters.Insert(0, verticaleParam);
+    
+    // Mappa delle sostituzioni dei parametri inglesi in italiano
+    var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        {"alt=", ""}, {"border", "bordo"}, {"bottom", "sotto"}, {"center", "centro"}, {"centre", "centro"},
+        {"frameless", "senza cornice"}, {"frame", "riquadrato"}, {"framed", "riquadrato"}, 
+        {"enframed", "riquadrato"}, {"originale", "riquadrato"}, {"incorniciato", "riquadrato"}, 
+        {"left", "sinistra"}, {"middle", "metà"}, {"miniatura", "min"}, {"none", "nessuno"}, 
+        {"right", "destra"}, {"sub", "pedice"}, {"text-bottom", "testo-sotto"}, 
+        {"text-top", "testo-sopra"}, {"thumb", "min"}, {"thumbnail", "min"}, 
+        {"top", "sopra"}, {"upright", "verticale"},
+    };
+    
+    int nSubstitutions = 0;
+    bool pxRemoved = false;
+    StringBuilder result = new StringBuilder();
+    int i = 0;
+    int articleLength = ArticleText.Length;
+    
+    while (i < articleLength)
+    {
+        // Cerca "[[File:", "[[Immagine:", o "[[Image:"
+        if (i + 7 < articleLength && 
+            ArticleText[i] == '[' && ArticleText[i + 1] == '[' &&
+            (ArticleText.Substring(i + 2, 5).Equals("File:", StringComparison.OrdinalIgnoreCase) ||
+             ArticleText.Substring(i + 2, 9).Equals("Immagine:", StringComparison.OrdinalIgnoreCase) ||
+             ArticleText.Substring(i + 2, 6).Equals("Image:", StringComparison.OrdinalIgnoreCase)))
+        {
+            int startPos = i;
+            int bracketBalance = 2; // Partiamo con 2 perché abbiamo "[["
+            int currentPos = i + 2; // Saltiamo le prime due parentesi
+            
+            // Scorri a destra finché il bilanciamento non è zero
+            while (currentPos < articleLength && bracketBalance > 0)
+            {
+                if (currentPos + 1 < articleLength && 
+                    ArticleText[currentPos] == '[' && ArticleText[currentPos + 1] == '[')
+                {
+                    bracketBalance += 2;
+                    currentPos += 2; // Salta entrambe le parentesi
+                }
+                else if (currentPos + 1 < articleLength && 
+                         ArticleText[currentPos] == ']' && ArticleText[currentPos + 1] == ']')
+                {
+                    bracketBalance -= 2;
+                    currentPos += 2; // Salta entrambe le parentesi
+                }
+                else
+                {
+                    currentPos++;
+                }
             }
-
-            nSubstitutions++;
-            pxRemoved = true; // Segna che è avvenuta una rimozione di 'px'
-          }
-        } catch {
-          // In caso di errore, mantieni il parametro px (fallback)
-          replacedParameters.Insert(0, pxParameter);
+            
+            // Se abbiamo trovato la fine bilanciata
+            if (bracketBalance == 0)
+            {
+                int endPos = currentPos; // currentPos punta alla fine dopo "]]"
+                string fileMatch = ArticleText.Substring(startPos, endPos - startPos);
+                
+                // Processa il match
+                string processedMatch = ProcessFileMatch(fileMatch, replacements, ref nSubstitutions, ref pxRemoved);
+                result.Append(processedMatch);
+                i = endPos;
+                continue;
+            }
         }
-      }
-    } else {
-      // Se NON c'è 'min', mantieni il parametro px
-      replacedParameters.Insert(0, pxParameter);
+        
+        // Se non troviamo un match o non riusciamo a bilanciare, copia il carattere corrente
+        result.Append(ArticleText[i]);
+        i++;
     }
-  }
-
-  // Se c'è 'min', rimuovi 'destra'
-  if (replacedParameters.Contains("min")) {
-    int indexDestra = replacedParameters.IndexOf("destra");
-    if (indexDestra > -1) {
-      replacedParameters.RemoveAt(indexDestra);
+    
+    // Salta l'articolo se non sono state apportate modifiche
+    if (!pxRemoved)
+    {
+        Skip = true;
+        Summary = "";
     }
-  }
-
-  // Standardizzazione di 'verticale'
-  replacedParameters = replacedParameters.Select(token => {
-      if (token == "verticale=.7" || token == "verticale=0.7") {
-        return "verticale";
-      }
-      if (token == "verticale=1" || token == "verticale=1.0") {
-        return "";
-      }
-      return token;
+    else
+    {
+        // Aggiorna il riepilogo con il numero effettivo di modifiche
+        Summary = string.Format("Localizza e uniforma {0} parametri dei file.", nSubstitutions);
+        
+        // Aggiunge la frase sul dimensionamento assoluto SE la rimozione del 'px' è avvenuta almeno una volta
+        if (pxRemoved)
+        {
+            Summary += " " + "Il [[WP:RIS|dimensionamento assoluto]] delle immagini è deprecato: sostituito con un ridimensionamento relativo; cfr.: [[WP:Bot/Autorizzazioni]].";
+        }
+    }
+    
+    return result.ToString();
+}
+private string ProcessFileMatch(string fileMatch, Dictionary<string, string> replacements, ref int nSubstitutions, ref bool pxRemoved)
+{
+    // Estrae il contenuto senza le [[ e ]] esterne
+    string innerContent = fileMatch.Substring(2, fileMatch.Length - 4);
+    
+    // Separa i token in base al divisore '|'
+    var tokens = innerContent.Split('|').ToList();
+    
+    if (tokens.Count < 2)
+    {
+        return fileMatch;
+    }
+    
+    // Standardizzazione della parte iniziale (es. "Image:" -> "File:")
+    string filePrefix = tokens[0].Trim();
+    if (Regex.IsMatch(filePrefix, @"^(Image|image):", RegexOptions.IgnoreCase))
+    {
+        tokens[0] = Regex.Replace(filePrefix, @"^(Image|image):", "File:", RegexOptions.IgnoreCase);
+        nSubstitutions++;
+    }
+    
+    // Lista separata per i parametri di dimensione in 'px'
+    string pxParameter = null;
+    
+    // Analisi e Localizzazione dei Parametri
+    var parameters = tokens.Skip(1)
+                           .Select(token => token.Trim())
+                           .ToList();
+    var replacedParameters = new List<string>();
+    foreach (var param in parameters)
+    {
+        // Controllo se il parametro è una dimensione assoluta in 'px'
+        if (Regex.IsMatch(param, @"^\d+x?\d*px$", RegexOptions.IgnoreCase))
+        {
+            pxParameter = param; // Salva il parametro px
+            continue; // NON aggiungerlo ancora a replacedParameters
+        }
+        if (replacements.ContainsKey(param))
+        {
+            nSubstitutions++;
+            replacedParameters.Add(replacements[param]);
+        }
+        else if (Regex.IsMatch(param, @"^upright=\d*(\.\d+)?$", RegexOptions.IgnoreCase))
+        {
+            // Gestione di 'upright=X'
+            nSubstitutions++;
+            replacedParameters.Add(Regex.Replace(param, "upright", "verticale", RegexOptions.IgnoreCase));
+        }
+        else
+        {
+            replacedParameters.Add(param);
+        }
+    }
+    
+    // Logica di conversione PX -> verticale (solo se c'è 'min')
+    if (pxParameter != null)
+    {
+        if (replacedParameters.Contains("min"))
+        {
+            // Controlla se c'è già un parametro verticale
+            bool hasVerticaleAlready = replacedParameters.Any(p => 
+                p.StartsWith("verticale", StringComparison.OrdinalIgnoreCase));
+            // Se NON c'è già un parametro verticale, procedi con la conversione
+            if (hasVerticaleAlready) 
+            {
+              //niente da fare: scarta px
+            }
+            else
+            {
+                try
+                {
+                    // Ottieni le dimensioni reali dell'immagine
+                    var ratio = GetImageRatio(tokens[0]);
+                    if (ratio > 0)
+                    {
+                        // Calcola il valore verticale: 
+                        double verticale_val = Math.Sqrt(ratio * 0.75);
+                        verticale_val = Math.Round(verticale_val, 2);
+                        
+                        // Aggiungi il parametro verticale
+                        string verticaleParam = "verticale=" + verticale_val.ToString();
+                        
+                        // Inserisci il parametro verticale dopo 'min' se presente
+                        int minIndex = replacedParameters.IndexOf("min");
+                        if (minIndex > -1)
+                        {
+                            replacedParameters.Insert(minIndex + 1, verticaleParam);
+                        }
+                        else
+                        {
+                            replacedParameters.Insert(0, verticaleParam);
+                        }
+                        
+                        nSubstitutions++;
+                        pxRemoved = true; // Segna che è avvenuta una rimozione di 'px'
+                    }
+                }
+                catch
+                {
+                    // In caso di errore, mantieni il parametro px (fallback)
+                    replacedParameters.Insert(0, pxParameter);
+                }
+            }
+        }
+        else
+        {
+            // Se NON c'è 'min', mantieni il parametro px
+            replacedParameters.Insert(0, pxParameter);
+        }
+    }
+    
+    // Se c'è 'min', rimuovi 'destra'
+    if (replacedParameters.Contains("min"))
+    {
+        int indexDestra = replacedParameters.IndexOf("destra");
+        if (indexDestra > -1)
+        {
+            replacedParameters.RemoveAt(indexDestra);
+        }
+    }
+    
+    // Standardizzazione di 'verticale'
+    replacedParameters = replacedParameters.Select(token => {
+        if (token == "verticale=.7" || token == "verticale=0.7")
+        {
+            return "verticale";
+        }
+        if (token == "verticale=1" || token == "verticale=1.0")
+        {
+            return "";
+        }
+        return token;
     }).Where(p => !string.IsNullOrEmpty(p))
-    .ToList();
-
-  // Ricostruisce la stringa del file
-  string newInnerContent = tokens[0] + (replacedParameters.Count > 0 ? "|" : "") + string.Join("|", replacedParameters);
-  return "[[" + newInnerContent + "]]";
+      .ToList();
+      
+    // Ricostruisce la stringa del file
+    string newInnerContent = tokens[0] + (replacedParameters.Count > 0 ? "|" : "") + string.Join("|", replacedParameters);
+    return "[[" + newInnerContent + "]]";
 }
 // Funzione per ottenere le dimensioni dell'immagine via API
-private double GetImageRatio(string imageTitle) {
-  try {
-    // Esegui la chiamata API a MediaWiki
-    string url = "https://it.wikipedia.org/w/api.php";
-    string parameters = string.Format(
-      "?action=query&prop=imageinfo&iiprop=size&titles={0}&format=json",
-      System.Web.HttpUtility.UrlEncode(imageTitle)
-    );
-
-    using(System.Net.WebClient client = new System.Net.WebClient()) {
-      client.Headers.Add("User-Agent", "AutoWikiBrowser Custom Module ([[it:user:nablabot]]); contact at [[it:user talk:super nabla]]");
-      string json = client.DownloadString(url + parameters);
-
-      // Parsing del JSON (semplificato)
-      if (json.Contains("\"width\":")) {
-        // Estrai width
-        int widthIndex = json.IndexOf("\"width\":") + 8;
-        int widthEndIndex = json.IndexOf(",", widthIndex);
-        string widthStr = json.Substring(widthIndex, widthEndIndex - widthIndex).Trim();
-
-        // Estrai height
-        int heightIndex = json.IndexOf("\"height\":", widthEndIndex) + 9;
-        int heightEndIndex = json.IndexOf("}", heightIndex);
-        string heightStr = json.Substring(heightIndex, heightEndIndex - heightIndex).Trim();
-
-        int width, height;
-        if (int.TryParse(widthStr, out width) && int.TryParse(heightStr, out height)) {
-          return 1.0 * width / height;
+private double GetImageRatio(string imageTitle)
+{
+    try
+    {       
+        // Esegui la chiamata API a MediaWiki
+        string url = "https://it.wikipedia.org/w/api.php";
+        string parameters = string.Format(
+            "?action=query&prop=imageinfo&iiprop=size&titles={0}&format=json",
+            System.Web.HttpUtility.UrlEncode(imageTitle)
+        );
+        
+        using (System.Net.WebClient client = new System.Net.WebClient())
+        {
+            client.Headers.Add("User-Agent", "AutoWikiBrowser Custom Module ([[it:user:nablabot]]); contact at [[it:user talk:super nabla]]");
+            string json = client.DownloadString(url + parameters);
+            
+            // Parsing del JSON (semplificato)
+            if (json.Contains("\"width\":"))
+            {
+                // Estrai width
+                int widthIndex = json.IndexOf("\"width\":") + 8;
+                int widthEndIndex = json.IndexOf(",", widthIndex);
+                string widthStr = json.Substring(widthIndex, widthEndIndex - widthIndex).Trim();
+                
+                // Estrai height
+                int heightIndex = json.IndexOf("\"height\":", widthEndIndex) + 9;
+                int heightEndIndex = json.IndexOf("}", heightIndex);
+                string heightStr = json.Substring(heightIndex, heightEndIndex - heightIndex).Trim();
+                
+                int width, height;
+                if (int.TryParse(widthStr, out width) && int.TryParse(heightStr, out height))
+                {
+                    return 1.0 * width / height;
+                }
+            }
         }
-      }
     }
-  } catch {
-    // In caso di errore, restituisci -1
-  }
-
-  return -1;
+    catch
+    {
+        // In caso di errore, restituisci -1
+    }
+    
+    return -1;
 }
