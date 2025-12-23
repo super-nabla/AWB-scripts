@@ -1,5 +1,9 @@
 // AutoWikiBrowser module to localize and standardize file parameters in Italian Wikipedia articles
 // by User:super nabla, December 2025
+
+// ⚠️ IMPORTANT: Update the following user agent string!
+public const string USER_AGENT = "";
+
 public string ProcessArticle(string ArticleText, string ArticleTitle, int wikiNamespace, out string Summary, out bool Skip)
     {
       return processFileParams(ArticleText, ArticleTitle, wikiNamespace, out Summary, out Skip);
@@ -254,7 +258,7 @@ private double GetImageRatio(string imageTitle)
         
         using (System.Net.WebClient client = new System.Net.WebClient())
         {
-            client.Headers.Add("User-Agent", "AutoWikiBrowser Custom Module ([[it:user:nablabot]]); contact at [[it:user talk:super nabla]]");
+            client.Headers.Add("User-Agent", USER_AGENT);
             string json = client.DownloadString(url + parameters);
             
             // Parsing del JSON (semplificato)
